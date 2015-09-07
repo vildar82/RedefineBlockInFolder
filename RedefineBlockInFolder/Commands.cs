@@ -113,7 +113,7 @@ namespace RedefineBlockInFolder
             SearchOption recursive = SearchOption.AllDirectories;
             if (dir.GetDirectories().Length > 0)
             {
-               var opt = new PromptKeywordOptions("Включая подпапки");
+               var opt = new PromptKeywordOptions("\nВключая подпапки");
                opt.Keywords.Add("Да");
                opt.Keywords.Add("Нет");
                opt.Keywords.Default = "Да";
