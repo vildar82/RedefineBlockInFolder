@@ -48,7 +48,21 @@ namespace RedefineBlockInFolder
                ed.WriteMessage("\nБлок для переопределения - " + blName);
 
                // Запрос папки для переопределения (рекурсивно?)
-               List<FileInfo> filesDwg = GetFiles(ed);
+               var dir = GetFiles(ed);
+               List<FileInfo> filesDwg = dir.GetFiles("*.dwg", IncludeSubdirs(ed, dir)).ToList();
+               // Если выбрана папка текущего чертежа               
+               if (Path.GetFullPath(dir.FullName).Equals(Path.GetDirectoryName(doc.Name), StringComparison.OrdinalIgnoreCase))
+               {
+                  // удалить файл чертежа из списка файлов
+                  foreach (var file in filesDwg)
+                  {
+                     if (Path.GetFileName (doc.Name).Equals(Path.GetFileName(file.Name)))
+                     {
+                        filesDwg.Remove(file);
+                        break;
+                     }
+                  }
+               }
                ed.WriteMessage("\nОбщее количество файлов для переопределения: " + filesDwg.Count);
 
                // Перебор всех файлов dwg папке, открытие базы, поиск блока и переопределение.
@@ -94,7 +108,7 @@ namespace RedefineBlockInFolder
          throw new System.Exception("Не выбран блок.");
       }
 
-      private List<FileInfo> GetFiles(Editor ed)
+      private DirectoryInfo GetFiles(Editor ed)
       {
          // Запрос папки
          //   Autodesk.AutoCAD.Windows.OpenFileDialog ofdAcad = new Autodesk.AutoCAD.Windows.OpenFileDialog("Выбор папки", Path.GetDirectoryName (ed.Document.Name) , "", "Выбор папки", Autodesk.AutoCAD.Windows.OpenFileDialog.OpenFileDialogFlags.AllowFoldersOnly);         
@@ -104,39 +118,44 @@ namespace RedefineBlockInFolder
          folderDlg.ShowNewFolderButton = false;
          //folderDlg.RootFolder = Environment.SpecialFolder.MyComputer;
          folderDlg.SelectedPath = Path.GetDirectoryName(ed.Document.Name);
-         if (folderDlg.ShowDialog() == DialogResult.OK)         
+         if (folderDlg.ShowDialog() == DialogResult.OK)
          {
             DirectoryInfo dir = new DirectoryInfo(folderDlg.SelectedPath);
             if (!dir.Exists)
             {
                throw new System.Exception("Папки не существует " + dir.FullName);
-            }
-            // Вопрос - включая подпапки?
-            SearchOption recursive = SearchOption.AllDirectories;
-            if (dir.GetDirectories().Length > 0)
-            {
-               var opt = new PromptKeywordOptions("\nВключая подпапки");
-               opt.Keywords.Add("Да");
-               opt.Keywords.Add("Нет");
-               opt.Keywords.Default = "Да";
-               var res = ed.GetKeywords(opt);
-               if (res.Status == PromptStatus.OK)
-               {
-                  if (res.StringResult == "Нет")
-                  {
-                     recursive = SearchOption.TopDirectoryOnly;
-                  }
-               }
-            }
-            ed.WriteMessage("\nПапка для переопределения блока " + dir.FullName);
-            if (recursive == SearchOption.AllDirectories)
-               ed.WriteMessage("\nВключая подпапки");
-            else
-               ed.WriteMessage("\nТолько в этой папке, без подпапок.");
+            }            
 
-            return dir.GetFiles("*.dwg", recursive).ToList();
+            return dir;
          }
          throw new System.Exception("Не выбрана папка.");
+      }
+
+      private static SearchOption IncludeSubdirs(Editor ed, DirectoryInfo dir)
+      {
+         // Вопрос - включая подпапки?
+         SearchOption recursive = SearchOption.AllDirectories;
+         if (dir.GetDirectories().Length > 0)
+         {
+            var opt = new PromptKeywordOptions("\nВключая подпапки");
+            opt.Keywords.Add("Да");
+            opt.Keywords.Add("Нет");
+            opt.Keywords.Default = "Да";
+            var res = ed.GetKeywords(opt);
+            if (res.Status == PromptStatus.OK)
+            {
+               if (res.StringResult == "Нет")
+               {
+                  recursive = SearchOption.TopDirectoryOnly;
+               }
+            }
+         }
+         ed.WriteMessage("\nПапка для переопределения блока " + dir.FullName);
+         if (recursive == SearchOption.AllDirectories)
+            ed.WriteMessage("\nВключая подпапки");
+         else
+            ed.WriteMessage("\nТолько в этой папке, без подпапок.");
+         return recursive;
       }
 
       private void RedefineBlockInFile(Editor ed, Database db, ObjectIdCollection idsSource,
