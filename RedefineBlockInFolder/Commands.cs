@@ -97,14 +97,16 @@ namespace RedefineBlockInFolder
       private List<FileInfo> GetFiles(Editor ed)
       {
          // Запрос папки
-         //FolderBrowserDialog folderDlg = new FolderBrowserDialog();
-         //folderDlg.Description = "Выбор папки для переопределения блока";
-         //folderDlg.ShowNewFolderButton = false;
-         //if (folderDlg.ShowDialog() == DialogResult.OK)
-         Autodesk.AutoCAD.Windows.OpenFileDialog ofdAcad = new Autodesk.AutoCAD.Windows.OpenFileDialog("Выбор папки", "", "", "Выбор папки", Autodesk.AutoCAD.Windows.OpenFileDialog.OpenFileDialogFlags.AllowFoldersOnly);
-         if (ofdAcad.ShowDialog() == DialogResult.OK)
+         //   Autodesk.AutoCAD.Windows.OpenFileDialog ofdAcad = new Autodesk.AutoCAD.Windows.OpenFileDialog("Выбор папки", Path.GetDirectoryName (ed.Document.Name) , "", "Выбор папки", Autodesk.AutoCAD.Windows.OpenFileDialog.OpenFileDialogFlags.AllowFoldersOnly);         
+         //if (ofdAcad.ShowDialog() == DialogResult.OK)
+         FolderBrowserDialog folderDlg = new FolderBrowserDialog();
+         folderDlg.Description = "Выбор папки для переопределения блока";
+         folderDlg.ShowNewFolderButton = false;
+         //folderDlg.RootFolder = Environment.SpecialFolder.MyComputer;
+         folderDlg.SelectedPath = Path.GetDirectoryName(ed.Document.Name);
+         if (folderDlg.ShowDialog() == DialogResult.OK)         
          {
-            DirectoryInfo dir = new DirectoryInfo(ofdAcad.Filename);
+            DirectoryInfo dir = new DirectoryInfo(folderDlg.SelectedPath);
             if (!dir.Exists)
             {
                throw new System.Exception("Папки не существует " + dir.FullName);
