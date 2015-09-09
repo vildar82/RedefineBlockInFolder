@@ -26,73 +26,117 @@ namespace RedefineBlockInFolder
          {
             try
             {
-               // Запрос блока для переопределения
-               ObjectId idBlRefSource = GetBlRefToRedefine(ed);
-               if (!idBlRefSource.IsValid)
-               {
-                  throw new System.Exception("Блок инвалид!");
-               }
-               var idsSource = new ObjectIdCollection();
-               idsSource.Add(idBlRefSource);
-               string blName = "";
-               using (var t = db.TransactionManager.StartTransaction())
-               {
-                  var blRefSource = t.GetObject(idBlRefSource, OpenMode.ForRead) as BlockReference;
-                  if (blRefSource.IsDynamicBlock)
-                     throw new System.Exception("Динамические блоки не поддерживаются пока (");
-                  if (blRefSource.AttributeCollection.Count > 0)
-                     throw new System.Exception("Блоки с атрибутами не поддерживаются пока (");
-                  blName = blRefSource.Name;
-                  t.Commit();
-               }
-               ed.WriteMessage("\nБлок для переопределения - " + blName);
+               ObjectIdCollection idsSource;
+               string blName;
+
+               // Запрос блока для переопределения               
+               GetBlock(ed, db, out idsSource, out blName);
 
                // Запрос папки для переопределения (рекурсивно?)
-               var dir = GetFiles(ed);
-               List<FileInfo> filesDwg = dir.GetFiles("*.dwg", IncludeSubdirs(ed, dir)).ToList();
-               // Если выбрана папка текущего чертежа               
-               if (Path.GetFullPath(dir.FullName).Equals(Path.GetDirectoryName(doc.Name), StringComparison.OrdinalIgnoreCase))
-               {
-                  // удалить файл чертежа из списка файлов
-                  foreach (var file in filesDwg)
-                  {
-                     if (Path.GetFileName (doc.Name).Equals(Path.GetFileName(file.Name)))
-                     {
-                        filesDwg.Remove(file);
-                        break;
-                     }
-                  }
-               }
-               ed.WriteMessage("\nОбщее количество файлов для переопределения: " + filesDwg.Count);
+               List<FileInfo> filesDwg = GetDir(doc, ed);
 
                // Перебор всех файлов dwg папке, открытие базы, поиск блока и переопределение.
-               int countFilesRedefined = 0;
-               int countFilesWithoutBlock = 0;
-               int countFilesError = 0;
-               foreach (var file in filesDwg)
-               {
-                  try
-                  {
-                     RedefineBlockInFile(ed, db, idsSource, blName, file, ref countFilesRedefined, ref countFilesWithoutBlock);
-                  }
-                  catch (System.Exception ex)
-                  {
-                     ed.WriteMessage("\nОшибка при переопределении блока в файле " + file.FullName);
-                     ed.WriteMessage("\nТекст ошибки " + ex.Message);
-                  }
-               }
-               ed.WriteMessage("\nПереопределен блок в " + countFilesRedefined + " файле.");
-               if (countFilesWithoutBlock != 0)
-                  ed.WriteMessage("\nНет блока в " + countFilesWithoutBlock + " файле.");
-               if (countFilesError != 0)
-                  ed.WriteMessage("\nОшибка при переопределении блока в " + countFilesError + " файле.");
-               ed.WriteMessage("\nГотово");
+               RedefBlockInFiles(ed, db, idsSource, blName, filesDwg);
             }
             catch (System.Exception ex)
             {
                ed.WriteMessage("\n" + ex.Message);
             }
          }
+      }
+
+      private void RedefBlockInFiles(Editor ed, Database db, ObjectIdCollection idsSource, string blName, List<FileInfo> filesDwg)
+      {
+         int countFilesRedefined = 0;
+         int countFilesWithoutBlock = 0;
+         int countFilesError = 0;
+
+         // Прогресс бар
+         ProgressMeter pBar = new ProgressMeter();
+         pBar.Start("Переопределение блоков в файлах... нажмите Esc для отмены");         
+         pBar.SetLimit(filesDwg.Count);
+
+         // Фильтр отслеживаемых сообщений системы
+         MyMessageFilter filter = new MyMessageFilter();
+         System.Windows.Forms.Application.AddMessageFilter(filter);         
+
+         foreach (var file in filesDwg)
+         {
+            // Отслеживание нажатия Esc
+            System.Windows.Forms.Application.DoEvents();
+            if (filter.bCanceled == true)
+            {
+               pBar.Stop();
+               throw new System.Exception("Операция прервана.");
+            }
+
+            // Переопределение блока в файле
+            try
+            {              
+               RedefineBlockInFile(ed, db, idsSource, blName, file, ref countFilesRedefined, ref countFilesWithoutBlock);               
+            }
+            catch (System.Exception ex)
+            {
+               ed.WriteMessage("\nОшибка при переопределении блока в файле " + file.FullName);
+               ed.WriteMessage("\nТекст ошибки " + ex.Message);
+            }            
+            pBar.MeterProgress();
+         }
+
+         System.Windows.Forms.Application.RemoveMessageFilter(filter);
+         pBar.Stop();
+
+         ed.WriteMessage("\nПереопределен блок в " + countFilesRedefined + " файле.");
+         if (countFilesWithoutBlock != 0)
+            ed.WriteMessage("\nНет блока в " + countFilesWithoutBlock + " файле.");
+         if (countFilesError != 0)
+            ed.WriteMessage("\nОшибка при переопределении блока в " + countFilesError + " файле.");
+         ed.WriteMessage("\nГотово");
+      }
+
+      private List<FileInfo> GetDir(Document doc, Editor ed)
+      {
+         var dir = GetFiles(ed);
+         List<FileInfo> filesDwg = dir.GetFiles("*.dwg", IncludeSubdirs(ed, dir)).ToList();
+         // Если выбрана папка текущего чертежа               
+         if (Path.GetFullPath(dir.FullName).Equals(Path.GetDirectoryName(doc.Name), StringComparison.OrdinalIgnoreCase))
+         {
+            // удалить файл чертежа из списка файлов
+            foreach (var file in filesDwg)
+            {
+               if (Path.GetFileName(doc.Name).Equals(Path.GetFileName(file.Name)))
+               {
+                  filesDwg.Remove(file);
+                  break;
+               }
+            }
+         }
+         ed.WriteMessage("\nОбщее количество файлов для переопределения: " + filesDwg.Count);
+         return filesDwg;
+      }
+
+      private void GetBlock(Editor ed, Database db, out ObjectIdCollection idsSource, out string blName)
+      {
+         ObjectId idBlRefSource = GetBlRefToRedefine(ed);
+         if (!idBlRefSource.IsValid)
+         {
+            throw new System.Exception("Блок инвалид!");
+         }
+
+         idsSource = new ObjectIdCollection();
+         idsSource.Add(idBlRefSource);
+         blName = "";
+         using (var t = db.TransactionManager.StartTransaction())
+         {
+            var blRefSource = t.GetObject(idBlRefSource, OpenMode.ForRead) as BlockReference;
+            if (blRefSource.IsDynamicBlock)
+               throw new System.Exception("Динамические блоки не поддерживаются пока (");
+            if (blRefSource.AttributeCollection.Count > 0)
+               throw new System.Exception("Блоки с атрибутами не поддерживаются пока (");
+            blName = blRefSource.Name;
+            t.Commit();
+         }
+         ed.WriteMessage("\nБлок для переопределения - " + blName);
       }
 
       private ObjectId GetBlRefToRedefine(Editor ed)
