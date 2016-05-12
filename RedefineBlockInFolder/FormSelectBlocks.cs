@@ -8,31 +8,74 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Autodesk.AutoCAD.DatabaseServices;
+using AcadLib;
 
 namespace RedefineBlockInFolder
 {
-   public partial class FormSelectBlocks : Form
-   {
-      public List<ObjectId> SelectedBlocks
-      {
-         get
-         {            
-            return listBoxblocks.SelectedItems.Cast<KeyValuePair<ObjectId, string>>().Select(k=>k.Key).ToList();
-         }
-      }
+    public partial class FormSelectBlocks : Form
+    {
+        public List<RedefineBlock> RenameBlocks { get; set; } = new List<RedefineBlock>();
+        public List<RedefineBlock> SelectedBlocks
+        {
+            get
+            {
+                return listBoxblocks.SelectedItems.Cast<RedefineBlock>().ToList();
+            }
+        }
 
-      public FormSelectBlocks(Dictionary<ObjectId, string> blocks)
-      {
-         InitializeComponent();
+        private List<RedefineBlock> blocks;
+        private BindingSource bindingDataSource;
 
-         listBoxblocks.DataSource = new BindingSource(blocks, null);
-         listBoxblocks.DisplayMember = "Value";
-         listBoxblocks.ValueMember = "Key";
-      }
+        public FormSelectBlocks(List<RedefineBlock> blocks)
+        {
+            InitializeComponent();
+            this.blocks = blocks;
+            bindingDataSource = new BindingSource(blocks, null);
+            listBoxblocks.DataSource = bindingDataSource;
+            listBoxblocks.DisplayMember = "Name";            
+        }
 
-      private void listBoxblocks_SelectedValueChanged(object sender, EventArgs e)
-      {
-         labelSelblocks.Text = $"Выбрано блоков: {listBoxblocks.SelectedItems.Count}";
-      }
-   }
+        private void UpdateDataBinding()
+        {
+            
+        }
+
+        private void listBoxblocks_SelectedValueChanged(object sender, EventArgs e)
+        {
+            labelSelblocks.Text = $"Выбрано блоков: {listBoxblocks.SelectedItems.Count}";
+        }
+
+        private void listBoxblocks_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string text = string.Empty;
+            var bl = listBoxblocks.SelectedItem as RedefineBlock;
+            if(bl != null)
+            {
+                text = bl.Name;
+            }
+            textBoxRename.Text = text;
+        }
+
+        private void buttonRename_Click(object sender, EventArgs e)
+        {
+            var bl = listBoxblocks.SelectedItem as RedefineBlock;
+            if(bl == null)
+            {
+                MessageBox.Show("Не выбран блок!");
+            }
+            else
+            {
+                if (textBoxRename.Text.IsValidDbSymbolName())
+                {                    
+                    bl.Name = textBoxRename.Text;                                        
+                    RenameBlocks.Add(bl);
+                    bindingDataSource.ResetCurrentItem();
+                }
+                else
+                {
+                    MessageBox.Show("Недопустимое имя для блока!");
+                }
+            }
+        }
+    }
 }
