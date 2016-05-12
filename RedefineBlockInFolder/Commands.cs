@@ -157,7 +157,7 @@ namespace RedefineBlockInFolder
             pBar.SetLimit(filesDwg.Count);
 
             // Переименование блоков в этом файле
-            RenameBlocks(db, renameBlocks);
+            RenameBlocks(ed,db, renameBlocks);
 
             foreach (var file in filesDwg)
             {
@@ -184,7 +184,7 @@ namespace RedefineBlockInFolder
             ed.WriteMessage("\nГотово");
         }
 
-        private static void RenameBlocks(Database db, List<RedefineBlock> renameBlocks)
+        private static void RenameBlocks(Editor ed, Database db, List<RedefineBlock> renameBlocks)
         {
             if (renameBlocks == null || renameBlocks.Count == 0) return;
             using (var t = db.TransactionManager.StartTransaction())
@@ -196,6 +196,10 @@ namespace RedefineBlockInFolder
                     {
                         var btrRen = bt[blRen.OldName].GetObject(OpenMode.ForWrite) as BlockTableRecord;
                         btrRen.Name = blRen.Name;
+                    }
+                    else
+                    {
+                        ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {db.Filename}");
                     }
                 }
                 t.Commit();
@@ -212,7 +216,7 @@ namespace RedefineBlockInFolder
                 dbExt.CloseInput(true);
 
                 // Переименование блоков в этом файле
-                RenameBlocks(dbExt, renameBlocks);
+                RenameBlocks(ed, dbExt, renameBlocks);
 
                 if (blocksRedefine != null && blocksRedefine.Count > 0)
                 {
