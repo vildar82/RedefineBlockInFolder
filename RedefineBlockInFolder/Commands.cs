@@ -227,6 +227,17 @@ namespace RedefineBlockInFolder
                         dbExt.WblockCloneObjects(ids, dbExt.BlockTableId, map, DuplicateRecordCloning.Replace, false);                        
                         ed.WriteMessage("\n" + file.FullName + " - ок.");
                         countFilesRedefined++;
+                        // Обновление анонимных блоков для дин блоков
+                        using (var t = dbExt.TransactionManager.StartTransaction())
+                        {
+                            foreach (ObjectId id in ids)
+                            {                                
+                                var btr = map[id].Value.GetObject(OpenMode.ForRead) as BlockTableRecord;
+                                if (btr == null || !btr.IsDynamicBlock) continue;
+                                btr.UpdateAnonymousBlocks();
+                            }
+                            t.Commit();
+                        }
                     }
                 }
                 dbExt.SaveAs(file.FullName, DwgVersion.Current);
