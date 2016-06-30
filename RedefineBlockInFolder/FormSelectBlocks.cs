@@ -77,5 +77,25 @@ namespace RedefineBlockInFolder
                 }
             }
         }
+
+        private void buttonChangeBasePoint_Click(object sender, EventArgs e)
+        {
+            var bl = listBoxblocks.SelectedItem as RedefineBlock;
+            if (bl == null)
+            {
+                MessageBox.Show("Не выбран блок!");
+            }
+            else
+            {
+                try
+                {
+                    bl.ChangeBasePoint();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }                
+            }
+        }
     }
 }

@@ -236,9 +236,19 @@ namespace RedefineBlockInFolder
                                 if (btr == null || !btr.IsDynamicBlock) continue;
                                 btr.UpdateAnonymousBlocks();
                             }
+
+                            // Изменение точки вставки блока
+                            foreach (var redefBl in blocksRedefine)
+                            {
+                                if (redefBl.IsChangeBasePoint)
+                                {
+
+                                }
+                            }
+
                             t.Commit();
                         }
-                    }
+                    }                    
                 }
                 dbExt.SaveAs(file.FullName, DwgVersion.Current);
             }

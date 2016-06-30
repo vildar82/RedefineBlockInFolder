@@ -36,6 +36,7 @@
             this.textBoxRename = new System.Windows.Forms.TextBox();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.buttonRename = new System.Windows.Forms.Button();
+            this.buttonChangeBasePoint = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // listBoxblocks
@@ -47,7 +48,7 @@
             this.listBoxblocks.Location = new System.Drawing.Point(12, 12);
             this.listBoxblocks.Name = "listBoxblocks";
             this.listBoxblocks.SelectionMode = System.Windows.Forms.SelectionMode.MultiExtended;
-            this.listBoxblocks.Size = new System.Drawing.Size(376, 316);
+            this.listBoxblocks.Size = new System.Drawing.Size(396, 316);
             this.listBoxblocks.TabIndex = 0;
             this.listBoxblocks.SelectedIndexChanged += new System.EventHandler(this.listBoxblocks_SelectedIndexChanged);
             this.listBoxblocks.SelectedValueChanged += new System.EventHandler(this.listBoxblocks_SelectedValueChanged);
@@ -56,7 +57,7 @@
             // 
             this.buttonCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.buttonCancel.Location = new System.Drawing.Point(315, 376);
+            this.buttonCancel.Location = new System.Drawing.Point(335, 385);
             this.buttonCancel.Name = "buttonCancel";
             this.buttonCancel.Size = new System.Drawing.Size(75, 23);
             this.buttonCancel.TabIndex = 1;
@@ -67,7 +68,7 @@
             // 
             this.buttonOk.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonOk.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.buttonOk.Location = new System.Drawing.Point(234, 376);
+            this.buttonOk.Location = new System.Drawing.Point(254, 385);
             this.buttonOk.Name = "buttonOk";
             this.buttonOk.Size = new System.Drawing.Size(75, 23);
             this.buttonOk.TabIndex = 1;
@@ -78,7 +79,7 @@
             // 
             this.labelSelblocks.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.labelSelblocks.AutoSize = true;
-            this.labelSelblocks.Location = new System.Drawing.Point(12, 389);
+            this.labelSelblocks.Location = new System.Drawing.Point(12, 398);
             this.labelSelblocks.Name = "labelSelblocks";
             this.labelSelblocks.Size = new System.Drawing.Size(103, 13);
             this.labelSelblocks.TabIndex = 2;
@@ -88,9 +89,9 @@
             // 
             this.textBoxRename.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.textBoxRename.Location = new System.Drawing.Point(15, 347);
+            this.textBoxRename.Location = new System.Drawing.Point(13, 347);
             this.textBoxRename.Name = "textBoxRename";
-            this.textBoxRename.Size = new System.Drawing.Size(178, 20);
+            this.textBoxRename.Size = new System.Drawing.Size(198, 20);
             this.textBoxRename.TabIndex = 3;
             this.toolTip1.SetToolTip(this.textBoxRename, "Переименование блока в этом файле и во всех файлах в выбранной папке. Переименова" +
         "нные блоки не обязательно выбирать для переопределения.");
@@ -98,7 +99,7 @@
             // buttonRename
             // 
             this.buttonRename.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.buttonRename.Location = new System.Drawing.Point(199, 347);
+            this.buttonRename.Location = new System.Drawing.Point(217, 347);
             this.buttonRename.Name = "buttonRename";
             this.buttonRename.Size = new System.Drawing.Size(98, 20);
             this.buttonRename.TabIndex = 4;
@@ -108,13 +109,26 @@
             this.buttonRename.UseVisualStyleBackColor = true;
             this.buttonRename.Click += new System.EventHandler(this.buttonRename_Click);
             // 
+            // buttonChangeBasePoint
+            // 
+            this.buttonChangeBasePoint.BackgroundImage = global::RedefineBlocksInFolder.Properties.Resources.AKR_CBPR;
+            this.buttonChangeBasePoint.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.buttonChangeBasePoint.Location = new System.Drawing.Point(378, 337);
+            this.buttonChangeBasePoint.Name = "buttonChangeBasePoint";
+            this.buttonChangeBasePoint.Size = new System.Drawing.Size(30, 30);
+            this.buttonChangeBasePoint.TabIndex = 5;
+            this.toolTip1.SetToolTip(this.buttonChangeBasePoint, "Изменение базовой точки блока с сохранением его положения.");
+            this.buttonChangeBasePoint.UseVisualStyleBackColor = true;
+            this.buttonChangeBasePoint.Click += new System.EventHandler(this.buttonChangeBasePoint_Click);
+            // 
             // FormSelectBlocks
             // 
             this.AcceptButton = this.buttonOk;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.buttonCancel;
-            this.ClientSize = new System.Drawing.Size(400, 412);
+            this.ClientSize = new System.Drawing.Size(420, 421);
+            this.Controls.Add(this.buttonChangeBasePoint);
             this.Controls.Add(this.buttonRename);
             this.Controls.Add(this.textBoxRename);
             this.Controls.Add(this.labelSelblocks);
@@ -137,5 +151,6 @@
         private System.Windows.Forms.TextBox textBoxRename;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.Button buttonRename;
+        private System.Windows.Forms.Button buttonChangeBasePoint;
     }
 }
