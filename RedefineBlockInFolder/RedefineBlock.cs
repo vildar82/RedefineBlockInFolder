@@ -27,7 +27,7 @@ namespace RedefineBlockInFolder
             IsDynamic = btr.IsDynamicBlock;
         }
 
-        internal void ChangeBasePoint()
+        public void ChangeBasePoint()
         {
             // Вставка блока
             var blRefId = AcadLib.Blocks.BlockInsert.Insert(OldName);
@@ -37,11 +37,12 @@ namespace RedefineBlockInFolder
             Database db = doc.Database;
 
             // Выбор новой базовой точки
-            var ptNewBase = ed.GetPointWCS("\nВыбор новой базовой точки блока:");
+            var ptInput = ed.GetPointWCS("\nВыбор новой базовой точки блока:");            
 
             using (var t = db.TransactionManager.StartTransaction())
             {
                 var blRef = blRefId.GetObject(OpenMode.ForRead, false, true) as BlockReference;
+                var ptNewBase = ptInput- blRef.Position;
                 // Вектор смещения базовой точки вхождения блока
                 var ptBaseInBtr = ptNewBase.TransformBy(blRef.BlockTransform);
                 var vec = new Vector3d(ptBaseInBtr.ToArray());
@@ -84,6 +85,27 @@ namespace RedefineBlockInFolder
                 t.Commit();
             }
             IsChangeBasePoint = true;
+        }
+
+        public void ChangeBasePointInRedefineBase (Database dbExt, ObjectId idBtr)
+        {
+            var btr = idBtr.GetObject( OpenMode.ForRead) as BlockTableRecord;
+            var idsBlRefs =btr.GetBlockReferenceIds(true, false);
+            foreach (ObjectId idBlRef in idsBlRefs)
+            {
+                var blRef = idBlRef.GetObject( OpenMode.ForWrite) as BlockReference;
+                if (blRef == null) continue;
+
+                blRef.TransformBy(MatChangeBasePoint);
+            }
+            if (btr.IsDynamicBlock && !btr.IsAnonymous)
+            {
+                var idsBtrAnonym =btr.GetAnonymousBlockIds();
+                foreach (ObjectId idBtrAnonym in idsBtrAnonym)
+                {                    
+                    ChangeBasePointInRedefineBase(dbExt, idBtrAnonym);
+                }
+            }
         }
     }
 }

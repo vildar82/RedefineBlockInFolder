@@ -111,6 +111,7 @@
             // 
             // buttonChangeBasePoint
             // 
+            this.buttonChangeBasePoint.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonChangeBasePoint.BackgroundImage = global::RedefineBlocksInFolder.Properties.Resources.AKR_CBPR;
             this.buttonChangeBasePoint.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
             this.buttonChangeBasePoint.Location = new System.Drawing.Point(378, 337);

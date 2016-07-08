@@ -242,7 +242,7 @@ namespace RedefineBlockInFolder
                             {
                                 if (redefBl.IsChangeBasePoint)
                                 {
-
+                                    redefBl.ChangeBasePointInRedefineBase(dbExt, map[redefBl.IdBtr].Value);
                                 }
                             }
 
