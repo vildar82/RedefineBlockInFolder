@@ -159,9 +159,9 @@ namespace RedefineBlockInFolder
                     RedefineBlockInFile(ed, db, blocksRedefine, renameBlocks, file, ref countFilesRedefined, ref countFilesWithoutBlock);
                 }
                 catch (System.Exception ex)
-                {
-                    Inspector.AddError($"Ошибка при переопределении блока в файле {file.FullName} - {ex.Message}", System.Drawing.SystemIcons.Error);
-                    ed.WriteMessage("\nОшибка при переопределении блока в файле " + file.FullName);
+                {                    
+                    Inspector.AddError($"Ошибка при переопределении блока в файле {file.Name} - {ex.Message}", System.Drawing.SystemIcons.Error);
+                    ed.WriteMessage("\nОшибка при переопределении блока в файле " + file.Name);
                     ed.WriteMessage("\nТекст ошибки " + ex.Message);
                 }
                 pBar.MeterProgress();
@@ -189,14 +189,14 @@ namespace RedefineBlockInFolder
                     {
                         var btrRen = bt[blRen.OldName].GetObject(OpenMode.ForWrite) as BlockTableRecord;
                         btrRen.Name = blRen.Name;
-                        Inspector.AddError($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {db.Filename}",
+                        Inspector.AddError($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
                             System.Drawing.SystemIcons.Information);
                     }
                     else
                     {
-                        Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {db.Filename}", 
+                        Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}", 
                             System.Drawing.SystemIcons.Warning);
-                        ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {db.Filename}");
+                        ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}");
                     }
                 }
                 t.Commit();
@@ -228,7 +228,7 @@ namespace RedefineBlockInFolder
                             }
                             else
                             {
-                                Inspector.AddError($"Нет блока '{item.Name}' в чертеже {file.FullName}", 
+                                Inspector.AddError($"Нет блока '{item.Name}' в чертеже {file.Name}", 
                                     System.Drawing.SystemIcons.Warning);
                             }
                         }
@@ -265,7 +265,7 @@ namespace RedefineBlockInFolder
 
                         foreach (var item in redefBlockInThisDb)
                         {
-                            Inspector.AddError($"Переопределен блок '{item.Name}' в чертеже {file.FullName}", 
+                            Inspector.AddError($"Переопределен блок '{item.Name}' в чертеже {file.Name}", 
                                 System.Drawing.SystemIcons.Information);
                         }
                     }                    
