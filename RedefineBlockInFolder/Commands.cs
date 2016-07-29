@@ -15,13 +15,13 @@ namespace RedefineBlockInFolder
 {
     public class Commands : IExtensionApplication
     {
-        [CommandMethod("PIK", nameof(RedefineBlocksInFolder), CommandFlags.Modal)]
+        [CommandMethod("PIK", nameof(RedefineBlocksInFolder), CommandFlags.Modal | CommandFlags.UsePickSet)]
         public void RedefineBlocksInFolder ()
         {
             AcadLib.CommandStart.Start(doc =>
             {
                 List<RedefineBlock> renameBlocks;
-                List<RedefineBlock> blocksRedefine = SelectBlocks(out renameBlocks);
+                List<RedefineBlock> blocksRedefine = SelectBlocks(doc, out renameBlocks);
 
                 // Запрос папки для переопределения (рекурсивно?)
                 List<FileInfo> filesDwg = GetDir(doc, doc.Editor);
@@ -52,27 +52,51 @@ namespace RedefineBlockInFolder
             return filesDwg;
         }
 
-        private List<RedefineBlock> SelectBlocks(out List<RedefineBlock> renameBlocks)
-        {            
-            // Список блоков в чертеже
-            List<RedefineBlock> allblocks = new List<RedefineBlock>();            
-            Database db = HostApplicationServices.WorkingDatabase;            
-            using (var bt = db.BlockTableId.Open(OpenMode.ForRead) as BlockTable)
+        private List<RedefineBlock> SelectBlocks(Document doc, out List<RedefineBlock> renameBlocks)
+        {
+            List<RedefineBlock> allblocks = new List<RedefineBlock>();
+            
+            var selImpl = doc.Editor.SelectImplied();
+            if (selImpl.Status == PromptStatus.OK)
             {
-                foreach (var idBtr in bt)
+                List<ObjectId> idsBtrAdded = new List<ObjectId>();
+                var rxClassBlock = RXObject.GetClass(typeof(BlockReference));
+                using (var t = doc.TransactionManager.StartTransaction())
                 {
-                    using (var btr = idBtr.Open(OpenMode.ForRead) as BlockTableRecord)
+                    foreach (SelectedObject item in selImpl.Value)
+                    {                        
+                        var blRef = item.ObjectId.GetObject(OpenMode.ForRead) as BlockReference;
+                        if (blRef == null || idsBtrAdded.Contains(blRef.DynamicBlockTableRecord)) continue;
+                        var btr = blRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead) as BlockTableRecord;                        
+                            if (!btr.IsLayout && !btr.IsAnonymous && !btr.IsDependent)
+                        {
+                            var bl = new RedefineBlock(btr);
+                            allblocks.Add(bl);
+                        }
+                    }
+                    t.Commit();
+                }
+            }
+            else
+            {
+                // Список блоков в чертеже            
+                using (var t = doc.TransactionManager.StartTransaction())
+                {
+                    var bt = doc.Database.BlockTableId.GetObject(OpenMode.ForRead) as BlockTable;
+                    foreach (var idBtr in bt)
                     {
+                        var btr = idBtr.GetObject(OpenMode.ForRead) as BlockTableRecord;
                         if (!btr.IsLayout && !btr.IsAnonymous && !btr.IsDependent)
                         {
                             var bl = new RedefineBlock(btr);
                             allblocks.Add(bl);
                         }
                     }
+                    t.Commit();
                 }
             }
-            allblocks = allblocks.OrderBy(o => o.Name).ToList();
 
+            allblocks = allblocks.OrderBy(o => o.Name).ToList();
             // Выбор блоков для переопределения
             FormSelectBlocks formSelBlocks = new FormSelectBlocks(allblocks);
             if (Autodesk.AutoCAD.ApplicationServices.Application.ShowModalDialog(formSelBlocks) == DialogResult.OK)
