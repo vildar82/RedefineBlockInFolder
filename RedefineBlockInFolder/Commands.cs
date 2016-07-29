@@ -236,7 +236,7 @@ namespace RedefineBlockInFolder
 
                     using (var map = new IdMapping())
                     {
-                        var ids = new ObjectIdCollection(blocksRedefine.Select(b => b.IdBtr).ToArray());
+                        var ids = new ObjectIdCollection(redefBlockInThisDb.Select(b => b.IdBtr).ToArray());
                         // Копирование блока с переопредедлением.
                         dbExt.WblockCloneObjects(ids, dbExt.BlockTableId, map, DuplicateRecordCloning.Replace, false);                        
                         ed.WriteMessage("\n" + file.FullName + " - ок.");
