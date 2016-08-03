@@ -276,7 +276,7 @@ namespace RedefineBlockInFolder
                             }
 
                             // Изменение точки вставки блока
-                            foreach (var redefBl in blocksRedefine)
+                            foreach (var redefBl in redefBlockInThisDb)
                             {
                                 if (redefBl.IsChangeBasePoint)
                                 {
