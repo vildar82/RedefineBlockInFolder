@@ -209,18 +209,26 @@ namespace RedefineBlockInFolder
                 var bt = db.BlockTableId.GetObject(OpenMode.ForRead) as BlockTable;
                 foreach (var blRen in renameBlocks)
                 {
-                    if (bt.Has(blRen.OldName))
+                    if (bt.Has(blRen.Name))
                     {
-                        var btrRen = bt[blRen.OldName].GetObject(OpenMode.ForWrite) as BlockTableRecord;
-                        btrRen.Name = blRen.Name;
-                        Inspector.AddError($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                        Inspector.AddError($"Невозможно переименовать блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}. Блок с этим именем уже есть в чертеже.",
                             System.Drawing.SystemIcons.Information);
                     }
                     else
                     {
-                        Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}", 
-                            System.Drawing.SystemIcons.Warning);
-                        ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}");
+                        if (bt.Has(blRen.OldName))
+                        {
+                            var btrRen = bt[blRen.OldName].GetObject(OpenMode.ForWrite) as BlockTableRecord;
+                            btrRen.Name = blRen.Name;
+                            Inspector.AddError($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                                System.Drawing.SystemIcons.Information);
+                        }
+                        else
+                        {
+                            Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                                System.Drawing.SystemIcons.Warning);
+                            ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}");
+                        }
                     }
                 }
                 t.Commit();
