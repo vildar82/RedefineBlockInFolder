@@ -15,19 +15,22 @@ namespace RedefineBlockInFolder
 {
     public class Commands : IExtensionApplication
     {
-        [CommandMethod("PIK", nameof(RedefineBlocksInFolder), CommandFlags.Modal | CommandFlags.UsePickSet)]
+        [CommandMethod("PIK", nameof(RedefineBlocksInFolder), CommandFlags.Session | CommandFlags.UsePickSet)]
         public void RedefineBlocksInFolder ()
         {
             AcadLib.CommandStart.Start(doc =>
             {
-                List<RedefineBlock> renameBlocks;
-                List<RedefineBlock> blocksRedefine = SelectBlocks(doc, out renameBlocks);
+                using (doc.LockDocument())
+                {
+                    List<RedefineBlock> renameBlocks;
+                    List<RedefineBlock> blocksRedefine = SelectBlocks(doc, out renameBlocks);
 
-                // Запрос папки для переопределения (рекурсивно?)
-                List<FileInfo> filesDwg = GetDir(doc, doc.Editor);
+                    // Запрос папки для переопределения (рекурсивно?)
+                    List<FileInfo> filesDwg = GetDir(doc, doc.Editor);
 
-                // Перебор всех файлов dwg папке, открытие базы, поиск блока и переопределение.
-                RedefBlockInFiles(doc.Editor, doc.Database, blocksRedefine, renameBlocks, filesDwg);
+                    // Перебор всех файлов dwg папке, открытие базы, поиск блока и переопределение.
+                    RedefBlockInFiles(doc.Editor, doc.Database, blocksRedefine, renameBlocks, filesDwg);
+                }
             });
         }        
 
@@ -185,16 +188,34 @@ namespace RedefineBlockInFolder
             pBar.SetLimit(filesDwg.Count);
 
             // Переименование блоков в этом файле
-            var errs = RenameBlocks(ed,db, renameBlocks);
+            var errs = RenameBlocks(db, renameBlocks);
             if (errs.Count != 0)
                 Inspector.Errors.AddRange(errs);
+
+            Dictionary<string, Document> dictDocs = new Dictionary<string, Document>(StringComparer.OrdinalIgnoreCase);
+            foreach (Document doc in Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager)
+            {
+                dictDocs.Add(doc.Name, doc);
+            }
 
             foreach (var file in filesDwg)
             {
                 // Переопределение блока в файле
                 try
                 {
-                    RedefineBlockInFile(ed, db, blocksRedefine, renameBlocks, file, ref countFilesRedefined, ref countFilesWithoutBlock);
+                    Document doc;
+                    if (dictDocs.TryGetValue(file.FullName, out doc))
+                    {
+                        using (doc.LockDocument())
+                        {
+                            RedefineBlockInFile(doc, blocksRedefine, renameBlocks, file, ref countFilesRedefined, ref countFilesWithoutBlock);
+                            Inspector.AddError($"Обработан открытый документ '{doc.Name}'", System.Drawing.SystemIcons.Hand);
+                        }
+                    }
+                    else
+                    {
+                        RedefineBlockInFile(ed, db, blocksRedefine, renameBlocks, file, ref countFilesRedefined, ref countFilesWithoutBlock);
+                    }
                 }
                 catch (System.Exception ex)
                 {                    
@@ -215,7 +236,7 @@ namespace RedefineBlockInFolder
             ed.WriteMessage("\nГотово");
         }
 
-        private static List<Error> RenameBlocks (Editor ed, Database db, List<RedefineBlock> renameBlocks)
+        private static List<Error> RenameBlocks (Database db, List<RedefineBlock> renameBlocks)
         {
             List<Error> errors = new List<Error>();
             if (renameBlocks == null || renameBlocks.Count == 0) return errors;
@@ -248,7 +269,7 @@ namespace RedefineBlockInFolder
                                 System.Drawing.SystemIcons.Warning));
                             //Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
                             //    System.Drawing.SystemIcons.Warning);
-                            ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}");
+                            //ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}");
                         }
                     }
                 }
@@ -265,77 +286,95 @@ namespace RedefineBlockInFolder
             using (Database dbExt = new Database(false, true))
             {
                 dbExt.ReadDwgFile(file.FullName, FileShare.ReadWrite, false, "");
-                dbExt.CloseInput(true);                
+                dbExt.CloseInput(true);
 
-                // Переименование блоков в этом файле
-                var renameErrors = RenameBlocks(ed, dbExt, renameBlocks);
-                errors.AddRange(renameErrors);
+                countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, renameBlocks, file, countFilesRedefined, errors, dbExt);
 
-                if (blocksRedefine != null && blocksRedefine.Count > 0)
-                {
-                    List<RedefineBlock> redefBlockInThisDb = new List<RedefineBlock>();
-                    using (var bt = dbExt.BlockTableId.Open(OpenMode.ForRead) as BlockTable)
-                    {
-                        foreach (var item in blocksRedefine)
-                        {
-                            if (bt.Has(item.Name))
-                            {
-                                redefBlockInThisDb.Add(item);
-                            }
-                            else
-                            {
-                                errors.Add(new Error($"Нет блока '{item.Name}' в чертеже {file.Name}",
-                                    System.Drawing.SystemIcons.Warning));
-                                //Inspector.AddError($"Нет блока '{item.Name}' в чертеже {file.Name}", 
-                                //    System.Drawing.SystemIcons.Warning);
-                            }
-                        }
-                    }
-
-                    using (var map = new IdMapping())
-                    {
-                        var ids = new ObjectIdCollection(redefBlockInThisDb.Select(b => b.IdBtr).ToArray());
-                        // Копирование блока с переопредедлением.
-                        dbExt.WblockCloneObjects(ids, dbExt.BlockTableId, map, DuplicateRecordCloning.Replace, false);                        
-                        ed.WriteMessage("\n" + file.FullName + " - ок.");
-                        countFilesRedefined++;
-                        // Обновление анонимных блоков для дин блоков
-                        using (var t = dbExt.TransactionManager.StartTransaction())
-                        {
-                            foreach (ObjectId id in ids)
-                            {                                   
-                                var btr = map[id].Value.GetObject(OpenMode.ForRead) as BlockTableRecord;
-                                if (btr == null || !btr.IsDynamicBlock) continue;
-                                btr.UpdateAnonymousBlocks();
-                            }
-
-                            // Изменение точки вставки блока
-                            foreach (var redefBl in redefBlockInThisDb)
-                            {
-                                if (redefBl.IsChangeBasePoint)
-                                {
-                                    redefBl.ChangeBasePointInRedefineBase(dbExt, map[redefBl.IdBtr].Value);
-                                }
-                            }
-
-                            t.Commit();
-                        }
-
-                        foreach (var item in redefBlockInThisDb)
-                        {
-                            errors.Add(new Error($"Переопределен блок '{item.Name}' в чертеже {file.Name}",
-                                System.Drawing.SystemIcons.Information));
-                            //Inspector.AddError($"Переопределен блок '{item.Name}' в чертеже {file.Name}", 
-                            //    System.Drawing.SystemIcons.Information);
-                        }
-                    }                    
-                }
                 dbExt.SaveAs(file.FullName, DwgVersion.Current);
             }
+            if (errors.Count != 0)            
+                Inspector.Errors.AddRange(errors);            
+        }
+
+        private void RedefineBlockInFile (Document doc, List<RedefineBlock> blocksRedefine,
+                                    List<RedefineBlock> renameBlocks, FileInfo file,
+                                    ref int countFilesRedefined, ref int countFilesWithoutBlock)
+        {
+            List<Error> errors = new List<Error>();
+            countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, 
+                renameBlocks, file, countFilesRedefined, errors, doc.Database);
             if (errors.Count != 0)
-            {
                 Inspector.Errors.AddRange(errors);
+        }
+
+        private static int renameAndRedefBlocksInDb (List<RedefineBlock> blocksRedefine, 
+            List<RedefineBlock> renameBlocks, FileInfo file, int countFilesRedefined, List<Error> errors, Database dbExt)
+        {
+            // Переименование блоков в этом файле
+            var renameErrors = RenameBlocks(dbExt, renameBlocks);
+            errors.AddRange(renameErrors);
+
+            if (blocksRedefine != null && blocksRedefine.Count > 0)
+            {
+                List<RedefineBlock> redefBlockInThisDb = new List<RedefineBlock>();
+                using (var bt = dbExt.BlockTableId.Open(OpenMode.ForRead) as BlockTable)
+                {
+                    foreach (var item in blocksRedefine)
+                    {
+                        if (bt.Has(item.Name))
+                        {
+                            redefBlockInThisDb.Add(item);
+                        }
+                        else
+                        {
+                            errors.Add(new Error($"Нет блока '{item.Name}' в чертеже {file.Name}",
+                                System.Drawing.SystemIcons.Warning));
+                            //Inspector.AddError($"Нет блока '{item.Name}' в чертеже {file.Name}", 
+                            //    System.Drawing.SystemIcons.Warning);
+                        }
+                    }
+                }
+
+                using (var map = new IdMapping())
+                {
+                    var ids = new ObjectIdCollection(redefBlockInThisDb.Select(b => b.IdBtr).ToArray());
+                    // Копирование блока с переопредедлением.
+                    dbExt.WblockCloneObjects(ids, dbExt.BlockTableId, map, DuplicateRecordCloning.Replace, false);
+                    //ed.WriteMessage("\n" + file.FullName + " - ок.");
+                    countFilesRedefined++;
+                    // Обновление анонимных блоков для дин блоков
+                    using (var t = dbExt.TransactionManager.StartTransaction())
+                    {
+                        foreach (ObjectId id in ids)
+                        {
+                            var btr = map[id].Value.GetObject(OpenMode.ForRead) as BlockTableRecord;
+                            if (btr == null || !btr.IsDynamicBlock) continue;
+                            btr.UpdateAnonymousBlocks();
+                        }
+
+                        // Изменение точки вставки блока
+                        foreach (var redefBl in redefBlockInThisDb)
+                        {
+                            if (redefBl.IsChangeBasePoint)
+                            {
+                                redefBl.ChangeBasePointInRedefineBase(dbExt, map[redefBl.IdBtr].Value);
+                            }
+                        }
+
+                        t.Commit();
+                    }
+
+                    foreach (var item in redefBlockInThisDb)
+                    {
+                        errors.Add(new Error($"Переопределен блок '{item.Name}' в чертеже {file.Name}",
+                            System.Drawing.SystemIcons.Information));
+                        //Inspector.AddError($"Переопределен блок '{item.Name}' в чертеже {file.Name}", 
+                        //    System.Drawing.SystemIcons.Information);
+                    }
+                }
             }
+
+            return countFilesRedefined;
         }
 
         public void Initialize()
