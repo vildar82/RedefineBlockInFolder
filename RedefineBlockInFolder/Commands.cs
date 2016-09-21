@@ -39,14 +39,26 @@ namespace RedefineBlockInFolder
             if (Path.GetFullPath(dir.FullName).Equals(Path.GetDirectoryName(doc.Name), StringComparison.OrdinalIgnoreCase))
             {
                 // удалить файл чертежа из списка файлов
+                List<FileInfo> readOnlyFiles = new List<FileInfo>();
+                FileInfo ownerFile= null;
                 foreach (var file in filesDwg)
                 {
                     if (Path.GetFileName(doc.Name).Equals(Path.GetFileName(file.Name)))
                     {
-                        filesDwg.Remove(file);
-                        break;
+                        ownerFile = file;
+                    }
+                    else if (file.Attributes.HasFlag(FileAttributes.ReadOnly))
+                    {
+                        Inspector.AddError($"Файл доступен только для чтения - пропущен. '{file.Name}'", System.Drawing.SystemIcons.Warning);
+                        readOnlyFiles.Add(file);
                     }
                 }
+                foreach (var item in readOnlyFiles)
+                {
+                    filesDwg.Remove(item);
+                }
+                if (ownerFile != null)
+                    filesDwg.Remove(ownerFile);
             }
             ed.WriteMessage("\nОбщее количество файлов для переопределения: " + filesDwg.Count);
             return filesDwg;
@@ -173,7 +185,9 @@ namespace RedefineBlockInFolder
             pBar.SetLimit(filesDwg.Count);
 
             // Переименование блоков в этом файле
-            RenameBlocks(ed,db, renameBlocks);
+            var errs = RenameBlocks(ed,db, renameBlocks);
+            if (errs.Count != 0)
+                Inspector.Errors.AddRange(errs);
 
             foreach (var file in filesDwg)
             {
@@ -201,9 +215,10 @@ namespace RedefineBlockInFolder
             ed.WriteMessage("\nГотово");
         }
 
-        private static void RenameBlocks(Editor ed, Database db, List<RedefineBlock> renameBlocks)
+        private static List<Error> RenameBlocks (Editor ed, Database db, List<RedefineBlock> renameBlocks)
         {
-            if (renameBlocks == null || renameBlocks.Count == 0) return;
+            List<Error> errors = new List<Error>();
+            if (renameBlocks == null || renameBlocks.Count == 0) return errors;
             using (var t = db.TransactionManager.StartTransaction())
             {
                 var bt = db.BlockTableId.GetObject(OpenMode.ForRead) as BlockTable;
@@ -211,8 +226,10 @@ namespace RedefineBlockInFolder
                 {
                     if (bt.Has(blRen.Name))
                     {
-                        Inspector.AddError($"Невозможно переименовать блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}. Блок с этим именем уже есть в чертеже.",
-                            System.Drawing.SystemIcons.Information);
+                        errors.Add(new Error($"Невозможно переименовать блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}. Блок с этим именем уже есть в чертеже.",
+                            System.Drawing.SystemIcons.Information));
+                        //Inspector.AddError($"Невозможно переименовать блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}. Блок с этим именем уже есть в чертеже.",
+                        //    System.Drawing.SystemIcons.Information);
                     }
                     else
                     {
@@ -220,32 +237,39 @@ namespace RedefineBlockInFolder
                         {
                             var btrRen = bt[blRen.OldName].GetObject(OpenMode.ForWrite) as BlockTableRecord;
                             btrRen.Name = blRen.Name;
-                            Inspector.AddError($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
-                                System.Drawing.SystemIcons.Information);
+                            errors.Add(new Error($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                                System.Drawing.SystemIcons.Information));
+                            //Inspector.AddError($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                                //System.Drawing.SystemIcons.Information);
                         }
                         else
                         {
-                            Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
-                                System.Drawing.SystemIcons.Warning);
+                            errors.Add(new Error($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                                System.Drawing.SystemIcons.Warning));
+                            //Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                            //    System.Drawing.SystemIcons.Warning);
                             ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}");
                         }
                     }
                 }
                 t.Commit();
             }
+            return errors;
         }
 
         private void RedefineBlockInFile(Editor ed, Database db, List<RedefineBlock> blocksRedefine,
                                     List<RedefineBlock> renameBlocks, FileInfo file, 
                                     ref int countFilesRedefined, ref int countFilesWithoutBlock)
         {
+            List<Error> errors = new List<Error>();
             using (Database dbExt = new Database(false, true))
             {
                 dbExt.ReadDwgFile(file.FullName, FileShare.ReadWrite, false, "");
-                dbExt.CloseInput(true);
+                dbExt.CloseInput(true);                
 
                 // Переименование блоков в этом файле
-                RenameBlocks(ed, dbExt, renameBlocks);
+                var renameErrors = RenameBlocks(ed, dbExt, renameBlocks);
+                errors.AddRange(renameErrors);
 
                 if (blocksRedefine != null && blocksRedefine.Count > 0)
                 {
@@ -260,8 +284,10 @@ namespace RedefineBlockInFolder
                             }
                             else
                             {
-                                Inspector.AddError($"Нет блока '{item.Name}' в чертеже {file.Name}", 
-                                    System.Drawing.SystemIcons.Warning);
+                                errors.Add(new Error($"Нет блока '{item.Name}' в чертеже {file.Name}",
+                                    System.Drawing.SystemIcons.Warning));
+                                //Inspector.AddError($"Нет блока '{item.Name}' в чертеже {file.Name}", 
+                                //    System.Drawing.SystemIcons.Warning);
                             }
                         }
                     }
@@ -297,12 +323,18 @@ namespace RedefineBlockInFolder
 
                         foreach (var item in redefBlockInThisDb)
                         {
-                            Inspector.AddError($"Переопределен блок '{item.Name}' в чертеже {file.Name}", 
-                                System.Drawing.SystemIcons.Information);
+                            errors.Add(new Error($"Переопределен блок '{item.Name}' в чертеже {file.Name}",
+                                System.Drawing.SystemIcons.Information));
+                            //Inspector.AddError($"Переопределен блок '{item.Name}' в чертеже {file.Name}", 
+                            //    System.Drawing.SystemIcons.Information);
                         }
                     }                    
                 }
                 dbExt.SaveAs(file.FullName, DwgVersion.Current);
+            }
+            if (errors.Count != 0)
+            {
+                Inspector.Errors.AddRange(errors);
             }
         }
 
