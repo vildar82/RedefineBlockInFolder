@@ -35,45 +35,20 @@
   <ItemGroup>
     <Reference Include="AcadLib">
       <HintPath>..\..\..\AcadLib\AcadLib\bin\Release\AcadLib.dll</HintPath>
-    </Reference>
-    <Reference Include="AcCoreMgd, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.Core.20.1.0\lib\45\AcCoreMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcCui, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.20.1.0\lib\45\AcCui.dll</HintPath>
+    <Reference Include="AcCoreMgd">
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcDbMgd, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.Model.20.1.0\lib\45\AcDbMgd.dll</HintPath>
+    <Reference Include="AcDbMgd">
       <Private>False</Private>
     </Reference>
-    <Reference Include="acdbmgdbrep, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.Model.20.1.0\lib\45\acdbmgdbrep.dll</HintPath>
+    <Reference Include="AcMgd">
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcDx, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.20.1.0\lib\45\AcDx.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcMgd, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.20.1.0\lib\45\AcMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcMr, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.20.1.0\lib\45\AcMr.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcTcMgd, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.20.1.0\lib\45\AcTcMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcWindows, Version=20.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.20.1.0\lib\45\AcWindows.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AdWindows, Version=6.3.0.14, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.20.1.0\lib\45\AdWindows.dll</HintPath>
+    <Reference Include="NetLib, Version=1.0.49.88, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\Autodesk\AutoCAD\Pik\Settings\Dll\NetLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
