@@ -8,6 +8,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 [assembly: CommandClass(typeof(RedefineBlockInFolder.Commands))]
 
@@ -283,17 +284,18 @@ namespace RedefineBlockInFolder
                                     ref int countFilesRedefined, ref int countFilesWithoutBlock)
         {
             List<Error> errors = new List<Error>();
-            using (Database dbExt = new Database(false, true))
+            var doc = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.Open(file.FullName);
+            var dbExt = doc.Database;
+            using (doc.LockDocument())
+            //using (Database dbExt = new Database(false, true))
             {
-                dbExt.ReadDwgFile(file.FullName, FileShare.ReadWrite, false, "");
-                dbExt.CloseInput(true);
-
+                //dbExt.ReadDwgFile(file.FullName, FileShare.Read, false, "");
+                //dbExt.CloseInput(true);
                 countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, renameBlocks, file, countFilesRedefined, errors, dbExt);
-
                 dbExt.SaveAs(file.FullName, DwgVersion.Current);
             }
-            if (errors.Count != 0)            
-                Inspector.Errors.AddRange(errors);            
+            doc.CloseAndDiscard();
+            if (errors.Count != 0) Inspector.Errors.AddRange(errors);            
         }
 
         private void RedefineBlockInFile (Document doc, List<RedefineBlock> blocksRedefine,
