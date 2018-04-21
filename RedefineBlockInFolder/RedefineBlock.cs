@@ -32,9 +32,9 @@ namespace RedefineBlockInFolder
             // Вставка блока
             var blRefId = AcadLib.Blocks.BlockInsert.Insert(OldName);
                         
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Editor ed = doc.Editor;
-            Database db = doc.Database;
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            var ed = doc.Editor;
+            var db = doc.Database;
 
             // Выбор новой базовой точки
             var ptInput = ed.GetPointWCS("\nВыбор новой базовой точки блока:");            

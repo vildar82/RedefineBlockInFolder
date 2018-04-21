@@ -47,7 +47,7 @@ namespace RedefineBlockInFolder
 
         private void listBoxblocks_SelectedIndexChanged(object sender, EventArgs e)
         {
-            string text = string.Empty;
+            var text = string.Empty;
             var bl = listBoxblocks.SelectedItem as RedefineBlock;
             if(bl != null)
             {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using AcadLib;
 using AcadLib.Errors;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -24,10 +25,10 @@ namespace RedefineBlockInFolder
                 using (doc.LockDocument())
                 {
                     List<RedefineBlock> renameBlocks;
-                    List<RedefineBlock> blocksRedefine = SelectBlocks(doc, out renameBlocks);
+                    var blocksRedefine = SelectBlocks(doc, out renameBlocks);
 
                     // Запрос папки для переопределения (рекурсивно?)
-                    List<FileInfo> filesDwg = GetDir(doc, doc.Editor);
+                    var filesDwg = GetDir(doc, doc.Editor);
 
                     // Перебор всех файлов dwg папке, открытие базы, поиск блока и переопределение.
                     RedefBlockInFiles(doc.Editor, doc.Database, blocksRedefine, renameBlocks, filesDwg);
@@ -38,12 +39,12 @@ namespace RedefineBlockInFolder
         private List<FileInfo> GetDir(Document doc, Editor ed)
         {
             var dir = GetFiles(ed);
-            List<FileInfo> filesDwg = dir.GetFiles("*.dwg", IncludeSubdirs(ed, dir)).ToList();
+            var filesDwg = dir.GetFiles("*.dwg", IncludeSubdirs(ed, dir)).ToList();
             // Если выбрана папка текущего чертежа               
             if (Path.GetFullPath(dir.FullName).Equals(Path.GetDirectoryName(doc.Name), StringComparison.OrdinalIgnoreCase))
             {
                 // удалить файл чертежа из списка файлов
-                List<FileInfo> readOnlyFiles = new List<FileInfo>();
+                var readOnlyFiles = new List<FileInfo>();
                 FileInfo ownerFile= null;
                 foreach (var file in filesDwg)
                 {
@@ -70,12 +71,12 @@ namespace RedefineBlockInFolder
 
         private List<RedefineBlock> SelectBlocks(Document doc, out List<RedefineBlock> renameBlocks)
         {
-            List<RedefineBlock> allblocks = new List<RedefineBlock>();
+            var allblocks = new List<RedefineBlock>();
             
             var selImpl = doc.Editor.SelectImplied();
             if (selImpl.Status == PromptStatus.OK)
             {
-                List<ObjectId> idsBtrAdded = new List<ObjectId>();
+                var idsBtrAdded = new List<ObjectId>();
                 var rxClassBlock = RXObject.GetClass(typeof(BlockReference));
                 using (var t = doc.TransactionManager.StartTransaction())
                 {
@@ -114,7 +115,7 @@ namespace RedefineBlockInFolder
 
             allblocks = allblocks.OrderBy(o => o.Name).ToList();
             // Выбор блоков для переопределения
-            FormSelectBlocks formSelBlocks = new FormSelectBlocks(allblocks);
+            var formSelBlocks = new FormSelectBlocks(allblocks);
             if (Autodesk.AutoCAD.ApplicationServices.Application.ShowModalDialog(formSelBlocks) == DialogResult.OK)
             {
                 renameBlocks = formSelBlocks.RenameBlocks;
@@ -131,14 +132,14 @@ namespace RedefineBlockInFolder
             // Запрос папки
             //   Autodesk.AutoCAD.Windows.OpenFileDialog ofdAcad = new Autodesk.AutoCAD.Windows.OpenFileDialog("Выбор папки", Path.GetDirectoryName (ed.Document.Name) , "", "Выбор папки", Autodesk.AutoCAD.Windows.OpenFileDialog.OpenFileDialogFlags.AllowFoldersOnly);         
             //if (ofdAcad.ShowDialog() == DialogResult.OK)
-            FolderBrowserDialog folderDlg = new FolderBrowserDialog();
+            var folderDlg = new FolderBrowserDialog();
             folderDlg.Description = "Выбор папки для переопределения блоков";
             folderDlg.ShowNewFolderButton = false;
             //folderDlg.RootFolder = Environment.SpecialFolder.MyComputer;
             folderDlg.SelectedPath = Path.GetDirectoryName(ed.Document.Name);
             if (folderDlg.ShowDialog() == DialogResult.OK)
             {
-                DirectoryInfo dir = new DirectoryInfo(folderDlg.SelectedPath);
+                var dir = new DirectoryInfo(folderDlg.SelectedPath);
                 if (!dir.Exists)
                 {
                     throw new System.Exception("Папки не существует " + dir.FullName);
@@ -152,7 +153,7 @@ namespace RedefineBlockInFolder
         private static SearchOption IncludeSubdirs(Editor ed, DirectoryInfo dir)
         {
             // Вопрос - включая подпапки?
-            SearchOption recursive = SearchOption.AllDirectories;
+            var recursive = SearchOption.AllDirectories;
             if (dir.GetDirectories().Length > 0)
             {
                 var opt = new PromptKeywordOptions("\nВключая подпапки");
@@ -179,12 +180,12 @@ namespace RedefineBlockInFolder
         private void RedefBlockInFiles(Editor ed, Database db, List<RedefineBlock> blocksRedefine,
                                         List<RedefineBlock> renameBlocks, List<FileInfo> filesDwg)
         {
-            int countFilesRedefined = 0;
-            int countFilesWithoutBlock = 0;
-            int countFilesError = 0;
+            var countFilesRedefined = 0;
+            var countFilesWithoutBlock = 0;
+            var countFilesError = 0;
 
             // Прогресс бар
-            ProgressMeter pBar = new ProgressMeter();
+            var pBar = new ProgressMeter();
             pBar.Start("Переопределение блоков в файлах... нажмите Esc для отмены");
             pBar.SetLimit(filesDwg.Count);
 
@@ -193,7 +194,7 @@ namespace RedefineBlockInFolder
             if (errs.Count != 0)
                 Inspector.Errors.AddRange(errs);
 
-            Dictionary<string, Document> dictDocs = new Dictionary<string, Document>(StringComparer.OrdinalIgnoreCase);
+            var dictDocs = new Dictionary<string, Document>(StringComparer.OrdinalIgnoreCase);
             foreach (Document doc in Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager)
             {
                 dictDocs.Add(doc.Name, doc);
@@ -239,7 +240,7 @@ namespace RedefineBlockInFolder
 
         private static List<Error> RenameBlocks (Database db, List<RedefineBlock> renameBlocks)
         {
-            List<Error> errors = new List<Error>();
+            var errors = new List<Error>();
             if (renameBlocks == null || renameBlocks.Count == 0) return errors;
             using (var t = db.TransactionManager.StartTransaction())
             {
@@ -283,18 +284,15 @@ namespace RedefineBlockInFolder
                                     List<RedefineBlock> renameBlocks, FileInfo file, 
                                     ref int countFilesRedefined, ref int countFilesWithoutBlock)
         {
-            List<Error> errors = new List<Error>();
-            var doc = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.Open(file.FullName);
-            var dbExt = doc.Database;
-            using (doc.LockDocument())
-            //using (Database dbExt = new Database(false, true))
+            var errors = new List<Error>();
+            using (var dbExt = new Database(false, true))
+            using (new WorkingDatabaseSwitcher(dbExt))
             {
-                //dbExt.ReadDwgFile(file.FullName, FileShare.Read, false, "");
-                //dbExt.CloseInput(true);
+                dbExt.ReadDwgFile(file.FullName, FileShare.Read, false, "");
+                dbExt.CloseInput(true);
                 countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, renameBlocks, file, countFilesRedefined, errors, dbExt);
                 dbExt.SaveAs(file.FullName, DwgVersion.Current);
             }
-            doc.CloseAndDiscard();
             if (errors.Count != 0) Inspector.Errors.AddRange(errors);            
         }
 
@@ -302,11 +300,10 @@ namespace RedefineBlockInFolder
                                     List<RedefineBlock> renameBlocks, FileInfo file,
                                     ref int countFilesRedefined, ref int countFilesWithoutBlock)
         {
-            List<Error> errors = new List<Error>();
+            var errors = new List<Error>();
             countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, 
                 renameBlocks, file, countFilesRedefined, errors, doc.Database);
-            if (errors.Count != 0)
-                Inspector.Errors.AddRange(errors);
+            if (errors.Count != 0) Inspector.Errors.AddRange(errors);
         }
 
         private static int renameAndRedefBlocksInDb (List<RedefineBlock> blocksRedefine, 
@@ -318,7 +315,7 @@ namespace RedefineBlockInFolder
 
             if (blocksRedefine != null && blocksRedefine.Count > 0)
             {
-                List<RedefineBlock> redefBlockInThisDb = new List<RedefineBlock>();
+                var redefBlockInThisDb = new List<RedefineBlock>();
                 using (var bt = dbExt.BlockTableId.Open(OpenMode.ForRead) as BlockTable)
                 {
                     foreach (var item in blocksRedefine)
@@ -381,9 +378,9 @@ namespace RedefineBlockInFolder
 
         public void Initialize()
         {
-            Document doc = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.MdiActiveDocument;
+            var doc = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
-            Editor ed = doc.Editor;
+            var ed = doc.Editor;
             ed.WriteMessage("\nЗагружена программа для переопределения выбранного блока в папке.");
             ed.WriteMessage("\nКоманда - RedefineBlockInFolder.");
         }
