@@ -12,6 +12,8 @@ using AcadLib;
 
 namespace RedefineBlockInFolder
 {
+    using AcadLib.Strings;
+
     public partial class FormSelectBlocks : Form
     {
         public List<RedefineBlock> RenameBlocks { get; set; } = new List<RedefineBlock>();
