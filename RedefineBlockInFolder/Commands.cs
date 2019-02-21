@@ -9,7 +9,6 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 [assembly: CommandClass(typeof(RedefineBlockInFolder.Commands))]
 
@@ -18,14 +17,13 @@ namespace RedefineBlockInFolder
     public class Commands : IExtensionApplication
     {
         [CommandMethod("PIK", nameof(RedefineBlocksInFolder), CommandFlags.Session | CommandFlags.UsePickSet)]
-        public void RedefineBlocksInFolder ()
+        public void RedefineBlocksInFolder()
         {
             AcadLib.CommandStart.Start(doc =>
             {
                 using (doc.LockDocument())
                 {
-                    List<RedefineBlock> renameBlocks;
-                    var blocksRedefine = SelectBlocks(doc, out renameBlocks);
+                    var blocksRedefine = SelectBlocks(doc, out var renameBlocks);
 
                     // Запрос папки для переопределения (рекурсивно?)
                     var filesDwg = GetDir(doc, doc.Editor);
@@ -34,18 +32,20 @@ namespace RedefineBlockInFolder
                     RedefBlockInFiles(doc.Editor, doc.Database, blocksRedefine, renameBlocks, filesDwg);
                 }
             });
-        }        
+        }
 
         private List<FileInfo> GetDir(Document doc, Editor ed)
         {
             var dir = GetFiles(ed);
             var filesDwg = dir.GetFiles("*.dwg", IncludeSubdirs(ed, dir)).ToList();
-            // Если выбрана папка текущего чертежа               
-            if (Path.GetFullPath(dir.FullName).Equals(Path.GetDirectoryName(doc.Name), StringComparison.OrdinalIgnoreCase))
+
+            // Если выбрана папка текущего чертежа
+            if (Path.GetFullPath(dir.FullName)
+                .Equals(Path.GetDirectoryName(doc.Name), StringComparison.OrdinalIgnoreCase))
             {
                 // удалить файл чертежа из списка файлов
                 var readOnlyFiles = new List<FileInfo>();
-                FileInfo ownerFile= null;
+                FileInfo ownerFile = null;
                 foreach (var file in filesDwg)
                 {
                     if (Path.GetFileName(doc.Name).Equals(Path.GetFileName(file.Name)))
@@ -54,17 +54,21 @@ namespace RedefineBlockInFolder
                     }
                     else if (file.Attributes.HasFlag(FileAttributes.ReadOnly))
                     {
-                        Inspector.AddError($"Файл доступен только для чтения - пропущен. '{file.Name}'", System.Drawing.SystemIcons.Warning);
+                        Inspector.AddError($"Файл доступен только для чтения - пропущен. '{file.Name}'",
+                            System.Drawing.SystemIcons.Warning);
                         readOnlyFiles.Add(file);
                     }
                 }
+
                 foreach (var item in readOnlyFiles)
                 {
                     filesDwg.Remove(item);
                 }
+
                 if (ownerFile != null)
                     filesDwg.Remove(ownerFile);
             }
+
             ed.WriteMessage("\nОбщее количество файлов для переопределения: " + filesDwg.Count);
             return filesDwg;
         }
@@ -72,31 +76,31 @@ namespace RedefineBlockInFolder
         private List<RedefineBlock> SelectBlocks(Document doc, out List<RedefineBlock> renameBlocks)
         {
             var allblocks = new List<RedefineBlock>();
-            
+
             var selImpl = doc.Editor.SelectImplied();
             if (selImpl.Status == PromptStatus.OK)
             {
                 var idsBtrAdded = new List<ObjectId>();
-                var rxClassBlock = RXObject.GetClass(typeof(BlockReference));
                 using (var t = doc.TransactionManager.StartTransaction())
                 {
                     foreach (SelectedObject item in selImpl.Value)
-                    {                        
+                    {
                         var blRef = item.ObjectId.GetObject(OpenMode.ForRead) as BlockReference;
                         if (blRef == null || idsBtrAdded.Contains(blRef.DynamicBlockTableRecord)) continue;
-                        var btr = blRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead) as BlockTableRecord;                        
-                            if (!btr.IsLayout && !btr.IsAnonymous && !btr.IsDependent)
+                        var btr = blRef.DynamicBlockTableRecord.GetObject(OpenMode.ForRead) as BlockTableRecord;
+                        if (!btr.IsLayout && !btr.IsAnonymous && !btr.IsDependent)
                         {
                             var bl = new RedefineBlock(btr);
                             allblocks.Add(bl);
                         }
                     }
+
                     t.Commit();
                 }
             }
             else
             {
-                // Список блоков в чертеже            
+                // Список блоков в чертеже
                 using (var t = doc.TransactionManager.StartTransaction())
                 {
                     var bt = doc.Database.BlockTableId.GetObject(OpenMode.ForRead) as BlockTable;
@@ -109,11 +113,13 @@ namespace RedefineBlockInFolder
                             allblocks.Add(bl);
                         }
                     }
+
                     t.Commit();
                 }
             }
 
             allblocks = allblocks.OrderBy(o => o.Name).ToList();
+
             // Выбор блоков для переопределения
             var formSelBlocks = new FormSelectBlocks(allblocks);
             if (Autodesk.AutoCAD.ApplicationServices.Application.ShowModalDialog(formSelBlocks) == DialogResult.OK)
@@ -124,19 +130,18 @@ namespace RedefineBlockInFolder
             else
             {
                 throw new System.Exception("Отменено пользователем.");
-            }            
+            }
         }
 
         private DirectoryInfo GetFiles(Editor ed)
         {
             // Запрос папки
-            //   Autodesk.AutoCAD.Windows.OpenFileDialog ofdAcad = new Autodesk.AutoCAD.Windows.OpenFileDialog("Выбор папки", Path.GetDirectoryName (ed.Document.Name) , "", "Выбор папки", Autodesk.AutoCAD.Windows.OpenFileDialog.OpenFileDialogFlags.AllowFoldersOnly);         
-            //if (ofdAcad.ShowDialog() == DialogResult.OK)
-            var folderDlg = new FolderBrowserDialog();
-            folderDlg.Description = "Выбор папки для переопределения блоков";
-            folderDlg.ShowNewFolderButton = false;
-            //folderDlg.RootFolder = Environment.SpecialFolder.MyComputer;
-            folderDlg.SelectedPath = Path.GetDirectoryName(ed.Document.Name);
+            var folderDlg = new FolderBrowserDialog
+            {
+                Description = "Выбор папки для переопределения блоков",
+                ShowNewFolderButton = false,
+                SelectedPath = Path.GetDirectoryName(ed.Document.Name)
+            };
             if (folderDlg.ShowDialog() == DialogResult.OK)
             {
                 var dir = new DirectoryInfo(folderDlg.SelectedPath);
@@ -147,6 +152,7 @@ namespace RedefineBlockInFolder
 
                 return dir;
             }
+
             throw new System.Exception("Не выбрана папка.");
         }
 
@@ -169,6 +175,7 @@ namespace RedefineBlockInFolder
                     }
                 }
             }
+
             ed.WriteMessage("\nПапка для переопределения блока " + dir.FullName);
             if (recursive == SearchOption.AllDirectories)
                 ed.WriteMessage("\nВключая подпапки");
@@ -177,8 +184,12 @@ namespace RedefineBlockInFolder
             return recursive;
         }
 
-        private void RedefBlockInFiles(Editor ed, Database db, List<RedefineBlock> blocksRedefine,
-                                        List<RedefineBlock> renameBlocks, List<FileInfo> filesDwg)
+        private void RedefBlockInFiles(
+            Editor ed,
+            Database db,
+            List<RedefineBlock> blocksRedefine,
+            List<RedefineBlock> renameBlocks,
+            List<FileInfo> filesDwg)
         {
             var countFilesRedefined = 0;
             var countFilesWithoutBlock = 0;
@@ -210,21 +221,26 @@ namespace RedefineBlockInFolder
                     {
                         using (doc.LockDocument())
                         {
-                            RedefineBlockInFile(doc, blocksRedefine, renameBlocks, file, ref countFilesRedefined, ref countFilesWithoutBlock);
-                            Inspector.AddError($"Обработан открытый документ '{doc.Name}'", System.Drawing.SystemIcons.Hand);
+                            RedefineBlockInFile(doc, blocksRedefine, renameBlocks, file, ref countFilesRedefined,
+                                ref countFilesWithoutBlock);
+                            Inspector.AddError($"Обработан открытый документ '{doc.Name}'",
+                                System.Drawing.SystemIcons.Hand);
                         }
                     }
                     else
                     {
-                        RedefineBlockInFile(ed, db, blocksRedefine, renameBlocks, file, ref countFilesRedefined, ref countFilesWithoutBlock);
+                        RedefineBlockInFile(ed, db, blocksRedefine, renameBlocks, file, ref countFilesRedefined,
+                            ref countFilesWithoutBlock);
                     }
                 }
                 catch (System.Exception ex)
-                {                    
-                    Inspector.AddError($"Ошибка при переопределении блока в файле {file.Name} - {ex.Message}", System.Drawing.SystemIcons.Error);
+                {
+                    Inspector.AddError($"Ошибка при переопределении блока в файле {file.Name} - {ex.Message}",
+                        System.Drawing.SystemIcons.Error);
                     ed.WriteMessage("\nОшибка при переопределении блока в файле " + file.Name);
                     ed.WriteMessage("\nТекст ошибки " + ex.Message);
                 }
+
                 pBar.MeterProgress();
             }
 
@@ -238,7 +254,7 @@ namespace RedefineBlockInFolder
             ed.WriteMessage("\nГотово");
         }
 
-        private static List<Error> RenameBlocks (Database db, List<RedefineBlock> renameBlocks)
+        private static List<Error> RenameBlocks(Database db, List<RedefineBlock> renameBlocks)
         {
             var errors = new List<Error>();
             if (renameBlocks == null || renameBlocks.Count == 0) return errors;
@@ -249,10 +265,9 @@ namespace RedefineBlockInFolder
                 {
                     if (bt.Has(blRen.Name))
                     {
-                        errors.Add(new Error($"Невозможно переименовать блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}. Блок с этим именем уже есть в чертеже.",
+                        errors.Add(new Error(
+                            $"Невозможно переименовать блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}. Блок с этим именем уже есть в чертеже.",
                             System.Drawing.SystemIcons.Information));
-                        //Inspector.AddError($"Невозможно переименовать блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}. Блок с этим именем уже есть в чертеже.",
-                        //    System.Drawing.SystemIcons.Information);
                     }
                     else
                     {
@@ -260,29 +275,33 @@ namespace RedefineBlockInFolder
                         {
                             var btrRen = bt[blRen.OldName].GetObject(OpenMode.ForWrite) as BlockTableRecord;
                             btrRen.Name = blRen.Name;
-                            errors.Add(new Error($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                            errors.Add(new Error(
+                                $"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
                                 System.Drawing.SystemIcons.Information));
-                            //Inspector.AddError($"Переименован блок '{blRen.OldName}' в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
-                                //System.Drawing.SystemIcons.Information);
                         }
                         else
                         {
-                            errors.Add(new Error($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
+                            errors.Add(new Error(
+                                $"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
                                 System.Drawing.SystemIcons.Warning));
-                            //Inspector.AddError($"Не найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}",
-                            //    System.Drawing.SystemIcons.Warning);
-                            //ed.WriteMessage($"\nНе найден блок '{blRen.OldName}' для переименования в '{blRen.Name}' в файле {Path.GetFileName(db.Filename)}");
                         }
                     }
                 }
+
                 t.Commit();
             }
+
             return errors;
         }
 
-        private void RedefineBlockInFile(Editor ed, Database db, List<RedefineBlock> blocksRedefine,
-                                    List<RedefineBlock> renameBlocks, FileInfo file, 
-                                    ref int countFilesRedefined, ref int countFilesWithoutBlock)
+        private void RedefineBlockInFile(
+            Editor ed,
+            Database db,
+            List<RedefineBlock> blocksRedefine,
+            List<RedefineBlock> renameBlocks,
+            FileInfo file,
+            ref int countFilesRedefined,
+            ref int countFilesWithoutBlock)
         {
             var errors = new List<Error>();
             using (var dbExt = new Database(false, true))
@@ -290,24 +309,35 @@ namespace RedefineBlockInFolder
             {
                 dbExt.ReadDwgFile(file.FullName, FileShare.Read, false, "");
                 dbExt.CloseInput(true);
-                countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, renameBlocks, file, countFilesRedefined, errors, dbExt);
+                countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, renameBlocks, file, countFilesRedefined,
+                    errors, dbExt);
                 dbExt.SaveAs(file.FullName, DwgVersion.Current);
             }
-            if (errors.Count != 0) Inspector.Errors.AddRange(errors);            
+
+            if (errors.Count != 0) Inspector.Errors.AddRange(errors);
         }
 
-        private void RedefineBlockInFile (Document doc, List<RedefineBlock> blocksRedefine,
-                                    List<RedefineBlock> renameBlocks, FileInfo file,
-                                    ref int countFilesRedefined, ref int countFilesWithoutBlock)
+        private void RedefineBlockInFile(
+            Document doc,
+            List<RedefineBlock> blocksRedefine,
+            List<RedefineBlock> renameBlocks,
+            FileInfo file,
+            ref int countFilesRedefined,
+            ref int countFilesWithoutBlock)
         {
             var errors = new List<Error>();
-            countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine, 
+            countFilesRedefined = renameAndRedefBlocksInDb(blocksRedefine,
                 renameBlocks, file, countFilesRedefined, errors, doc.Database);
             if (errors.Count != 0) Inspector.Errors.AddRange(errors);
         }
 
-        private static int renameAndRedefBlocksInDb (List<RedefineBlock> blocksRedefine, 
-            List<RedefineBlock> renameBlocks, FileInfo file, int countFilesRedefined, List<Error> errors, Database dbExt)
+        private static int renameAndRedefBlocksInDb(
+            List<RedefineBlock> blocksRedefine,
+            List<RedefineBlock> renameBlocks,
+            FileInfo file,
+            int countFilesRedefined,
+            List<Error> errors,
+            Database dbExt)
         {
             // Переименование блоков в этом файле
             var renameErrors = RenameBlocks(dbExt, renameBlocks);
@@ -328,8 +358,6 @@ namespace RedefineBlockInFolder
                         {
                             errors.Add(new Error($"Нет блока '{item.Name}' в чертеже {file.Name}",
                                 System.Drawing.SystemIcons.Warning));
-                            //Inspector.AddError($"Нет блока '{item.Name}' в чертеже {file.Name}", 
-                            //    System.Drawing.SystemIcons.Warning);
                         }
                     }
                 }
@@ -337,10 +365,11 @@ namespace RedefineBlockInFolder
                 using (var map = new IdMapping())
                 {
                     var ids = new ObjectIdCollection(redefBlockInThisDb.Select(b => b.IdBtr).ToArray());
+
                     // Копирование блока с переопредедлением.
                     dbExt.WblockCloneObjects(ids, dbExt.BlockTableId, map, DuplicateRecordCloning.Replace, false);
-                    //ed.WriteMessage("\n" + file.FullName + " - ок.");
                     countFilesRedefined++;
+
                     // Обновление анонимных блоков для дин блоков
                     using (var t = dbExt.TransactionManager.StartTransaction())
                     {
@@ -367,8 +396,6 @@ namespace RedefineBlockInFolder
                     {
                         errors.Add(new Error($"Переопределен блок '{item.Name}' в чертеже {file.Name}",
                             System.Drawing.SystemIcons.Information));
-                        //Inspector.AddError($"Переопределен блок '{item.Name}' в чертеже {file.Name}", 
-                        //    System.Drawing.SystemIcons.Information);
                     }
                 }
             }
@@ -387,7 +414,6 @@ namespace RedefineBlockInFolder
 
         public void Terminate()
         {
-
         }
     }
 }
